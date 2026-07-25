@@ -98,3 +98,5 @@ node_modules/
 
 # 允许跟踪的占位文件（保证空目录被纳入）
 !.gitkeep
+# 海报中间帧（仅本地）
+docs/assets/_frames/

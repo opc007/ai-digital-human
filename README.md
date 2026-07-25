@@ -1,5 +1,13 @@
 # AI 数字人直播 · 开源版（AI Digital Human Live）
 
+<p align="center">
+  <img src="docs/assets/promo-banner.jpg" alt="AI 数字人直播宣传海报" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/promo-preview.gif" alt="数字人多造型预览" width="360" />
+</p>
+
 > 一句话：**一张照片 + 一段声音 → 一个会说话的 24h 数字人主播**，跑在本机或你自己的服务器上，RTMP 推到抖音 / 快手 / 视频号 / 小红书 / TikTok。
 
 本仓库是 [AI 数字人 SaaS 平台](docs/AI数字人SaaS平台-开发文档.md) 的 **MVP 开源版**：
@@ -9,6 +17,16 @@
 - 💰 单小时运行成本估算 ~¥5（云端模式）
 - 🧩 模块可替换：LLM / TTS / 口型 / 推流都能换成你喜欢的引擎
 - 🌱 **欢迎共创**：提 Issue、加 PR、写文档、做插件，都会被认真 review
+
+### 宣传物料（可直接转发）
+
+| 文件 | 用途 |
+|------|------|
+| [docs/assets/promo-banner.jpg](docs/assets/promo-banner.jpg) | GitHub / 网页横版海报（含多造型） |
+| [docs/assets/promo-banner-ai.jpg](docs/assets/promo-banner-ai.jpg) | 品牌主视觉横版海报 |
+| [docs/assets/promo-poster-vertical.jpg](docs/assets/promo-poster-vertical.jpg) | 朋友圈 / 小红书竖版海报 |
+| [docs/assets/promo-preview.gif](docs/assets/promo-preview.gif) | 四宫格动图预览 |
+| [docs/assets/promo-preview.mp4](docs/assets/promo-preview.mp4) | 短视频预览（可再配旁白） |
 
 ---
 
