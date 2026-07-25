@@ -1,0 +1,65 @@
+app:
+  name: ai-digital-human
+  env: dev
+  data_dir: data
+
+server:
+  host: 0.0.0.0
+  # 本机 Comfy Desktop 常用 8000，控制台默认 8100
+  port: 8100
+
+llm:
+  provider: deepseek
+  base_url: https://api.deepseek.com/v1
+  model: deepseek-chat
+  max_history_turns: 6
+  max_reply_chars: 80
+  max_tokens: 120
+  temperature: 0.7
+
+tts:
+  provider: minimax
+  base_url: https://api.minimax.chat/v1/t2a_v2
+  model: speech-02-turbo
+  default_voice_id: male-qn-qingse
+  # 官方 T2A language_boost：中文直播 Chinese；粤语 Chinese,Yue；多语 auto
+  language_boost: Chinese
+  sample_rate: 32000
+
+avatar:
+  provider: musetalk
+  device: cuda
+  fps: 25
+  # 默认竖屏（抖音/快手/视频号）；横屏改 orientation: landscape 或 1920x1080
+  orientation: portrait
+  # contain=完整人物+黑边（推荐）；cover=铺满裁剪
+  fit: contain
+  width: 1080
+  height: 1920
+  model_path: models/musetalk
+  fallback_mock: true
+
+stream:
+  video_bitrate: 4000k
+  audio_bitrate: 128k
+  video_codec: libx264
+  preset: ultrafast
+  tune: zerolatency
+  reconnect_max: 5
+  reconnect_base_sec: 2
+
+moderation:
+  enabled: true
+  provider: keyword
+  blocked_words:
+    - 违禁示例词
+
+limits:
+  max_queue: 50
+  user_msg_per_30s: 3
+
+paths:
+  audio_dir: data/audio
+  output_dir: data/output
+  clips_dir: data/output/clips
+  logs_dir: logs

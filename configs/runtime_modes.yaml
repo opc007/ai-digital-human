@@ -1,0 +1,50 @@
+# 算力/模型模式：用户只选「云端 / 本地 / 混合」，不必懂 provider 细节
+modes:
+  cloud:
+    id: cloud
+    name: 云端模式
+    short: 推荐新手 · 用云端对话和声音
+    icon: ☁️
+    description: 对话用 DeepSeek，声音用 MiniMax。本机主要负责口型与推流。
+    needs:
+      - DEEPSEEK_API_KEY（可稍后配置，未配置时用演示回复）
+      - MINIMAX_API_KEY（可稍后配置，未配置时用静音演示）
+    engines:
+      llm: deepseek
+      tts: minimax
+      avatar: musetalk
+    mock_llm_if_no_key: true
+    mock_tts_if_no_key: true
+
+  local:
+    id: local
+    name: 本地模式
+    short: 隐私优先 · 需本机 Ollama + GPU
+    icon: 🖥️
+    description: 对话走本机 Ollama（如 qwen2.5），声音先用本机演示合成，口型走本机 MuseTalk/回落。
+    needs:
+      - 已安装并启动 Ollama（默认 http://127.0.0.1:11434）
+      - 建议已 pull 模型，如 qwen2.5:7b
+      - 口型需要 NVIDIA GPU（没有则自动用动作视频混音演示）
+    engines:
+      llm: ollama
+      tts: local
+      avatar: musetalk
+    mock_llm_if_no_key: false
+    mock_tts_if_no_key: false
+
+  hybrid:
+    id: hybrid
+    name: 混合模式
+    short: 云端聪明脑 · 本地出镜
+    icon: 🔀
+    description: 对话和声音用云端，形象口型与推流在本机，兼顾效果与成本。
+    needs:
+      - DEEPSEEK_API_KEY / MINIMAX_API_KEY（可选，有则真调用）
+      - 本机 GPU 更佳
+    engines:
+      llm: deepseek
+      tts: minimax
+      avatar: musetalk
+    mock_llm_if_no_key: true
+    mock_tts_if_no_key: true

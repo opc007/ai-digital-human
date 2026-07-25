@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>数字人直播工作台</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="no-scroll">
+  <!-- 一屏工作台：参考 OBS / 直播伴侣 — 预览常显 + 右侧功能页签，禁止整页滚动 -->
+  <div class="app studio shell">
+    <header class="top bar">
+      <div class="brand row">
+        <h1>数字人直播</h1>
+        <span class="sub hide-sm" id="homeSub">一屏操作 · 不滚动</span>
+      </div>
+      <div class="top-right">
+        <div class="ready-pills" id="readyPills" title="就绪状态"></div>
+        <a class="btn ghost sm" href="/materials" title="素材中心">素材</a>
+        <button type="button" class="btn primary sm" id="btnOpenSettings">配置</button>
+        <button type="button" class="btn ghost sm" id="btnHotkeyHelp">键</button>
+        <span id="livePill" class="pill off">未开播</span>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <!-- 左：监视器（始终完整可见） -->
+      <section class="monitor">
+        <div class="monitor-head">
+          <span class="mono" id="orientHint">竖屏 · 完整显示</span>
+          <span class="phase-line">
+            <strong id="phaseValue">未开播</strong>
+            <span id="phaseReply" class="phase-reply-inline">小幅微动待机 · 发文字后再切说话视频</span>
+          </span>
+        </div>
+        <div class="monitor-body">
+          <div class="stage-frame aspect-portrait fit-contain" id="stageFrame">
+            <img id="stillImage" class="stage-still" alt="数字人待机" />
+            <video id="previewVideo" class="stage-video hidden" playsinline webkit-playsinline preload="auto"></video>
+            <video id="previewVideoIdleB" class="stage-video stage-idle-b hidden" muted playsinline webkit-playsinline preload="auto"></video>
+            <div id="stageOverlay" class="stage-overlay">
+              <div class="stage-spinner"></div>
+              <div id="stageOverlayText">加载数字人…</div>
+            </div>
+            <button type="button" class="stage-unmute" id="btnUnmute">🔊 开声</button>
+            <div class="stage-badge" id="stageBadge">待机</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右：功能页签（翻页，不拉长整页） -->
+      <aside class="sidepanel" id="sidepanel">
+        <nav class="tabs" role="tablist" aria-label="功能页">
+          <button type="button" class="tab active" data-tab="go" role="tab" aria-selected="true">开播</button>
+          <button type="button" class="tab" data-tab="chat" role="tab">互动</button>
+          <button type="button" class="tab" data-tab="voice" role="tab">声音</button>
+          <button type="button" class="tab" data-tab="frame" role="tab">画面</button>
+          <button type="button" class="tab" data-tab="persona" role="tab">人设</button>
+        </nav>
+
+        <div class="tab-pages">
+          <!-- 页：开播 -->
+          <div class="tab-page active" id="tab-go" role="tabpanel">
+            <div class="block">
+              <div class="block-title">用哪个角色</div>
+              <div id="characterPick" class="runtime-row"></div>
+              <p class="hint tight" id="characterHint">没有角色？去「素材」新建并上传造型图。</p>
+              <div class="block-title" style="margin-top:10px">用哪套造型</div>
+              <div id="lookPick" class="runtime-row"></div>
+              <p class="hint tight" id="lookHint">选已生成的造型；未生成的会提示去素材页。</p>
+              <a class="btn ghost sm" href="/materials">管理角色 / 造型 →</a>
+            </div>
+            <div class="block">
+              <div class="block-title">推到哪里</div>
+              <div id="platformPushGrid" class="push-grid compact"></div>
+              <p class="hint tight" id="platformHint">预览先跑通；真播选平台并填推流码。</p>
+            </div>
+            <div class="block" id="rtmpCard">
+              <div class="block-title">推流码 <span class="optional" id="rtmpOptional">（预览可跳过）</span></div>
+              <label class="field tight">
+                <span id="keyLabel">推流码</span>
+                <input id="rtmpKey" type="text" autocomplete="off" placeholder="直播伴侣复制粘贴" />
+              </label>
+              <details class="advanced compact">
+                <summary>服务器地址</summary>
+                <label class="field tight">服务器
+                  <input id="rtmpUrl" type="text" placeholder="rtmp://..." />
+                </label>
+              </details>
+              <div class="rtmp-actions">
+                <button type="button" class="btn ghost sm" id="btnSaveRtmpKey">记住</button>
+              </div>
+              <p class="hint tight" id="savedKeyHint"></p>
+              <div id="platformGuide" class="guide mini hidden"></div>
+            </div>
+            <div class="block">
+              <div class="block-title">算力</div>
+              <div id="runtimeGrid" class="runtime-row"></div>
+              <div id="keyStatus" class="key-status compact"></div>
+            </div>
+            <div class="block">
+              <div class="block-title">开播前检查</div>
+              <button type="button" class="btn ghost sm" id="btnPreflight">🔍 检查一遍</button>
+              <div id="preflightSummary" class="pf-summary hidden"></div>
+              <div id="preflightList" class="pf-list"></div>
+              <p class="hint tight">开播失败时会自动打开这里，标出要处理的项目。</p>
+            </div>
+          </div>
+
+          <!-- 页：互动 -->
+          <div class="tab-page" id="tab-chat" role="tabpanel">
+            <div class="block chat-panel" id="chatPanel">
+              <div class="block-title">跟数字人说话</div>
+              <p class="hint tight" id="chatHint">发文字 → 后台合成（画面继续待机）→ 口型说话 → 回待机循环</p>
+              <div class="chat-row">
+                <input id="inputText" type="text" placeholder="主播好，今天播什么？" />
+                <button type="button" class="btn primary" id="btnSend">发送</button>
+              </div>
+              <div class="quick-row">
+                <button type="button" class="chip" data-text="你好呀">你好</button>
+                <button type="button" class="chip" data-text="今天有什么推荐">推荐</button>
+                <button type="button" class="chip" data-text="谢谢主播送你花花" data-gift="1">礼物</button>
+                <button type="button" class="chip" id="btnInterrupt">打断</button>
+              </div>
+              <details class="advanced compact log-box">
+                <summary>运行日志</summary>
+                <div id="events" class="events"></div>
+              </details>
+            </div>
+          </div>
+
+          <!-- 页：声音 -->
+          <div class="tab-page" id="tab-voice" role="tabpanel">
+            <div class="block">
+              <div class="block-title">声音方案</div>
+              <div class="gender-row" id="ttsModeGroup" role="group">
+                <button type="button" class="orient-btn active" id="btnFreeTtsOn" data-free="1">🎁 免费测试</button>
+                <button type="button" class="orient-btn" id="btnFreeTtsOff" data-free="0">☁️ MiniMax</button>
+              </div>
+              <p class="hint tight" id="ttsModeHint">免费测试=微软语音，无需会员，先跑通；有 MiniMax 会员后再切右边。</p>
+            </div>
+            <div class="block">
+              <div class="block-title">当前音色</div>
+              <div id="voiceCurrent" class="voice-current">加载中…</div>
+              <label class="field tight">试听文案
+                <input id="voicePreviewText" type="text" value="大家好，欢迎来到直播间，今天带大家一起玩～" />
+              </label>
+              <audio id="voicePreviewAudio" controls class="voice-audio hidden"></audio>
+            </div>
+            <div class="block">
+              <div class="block-title">选择性别</div>
+              <div class="gender-row" id="genderGroup">
+                <button type="button" class="orient-btn active" data-gender="all">全部</button>
+                <button type="button" class="orient-btn" data-gender="male">♂ 男声</button>
+                <button type="button" class="orient-btn" data-gender="female">♀ 女声</button>
+              </div>
+              <p class="hint tight" id="voiceHint">点音色可选中，点「试听」听效果。开播后使用当前选中音色。</p>
+            </div>
+            <div class="block">
+              <div class="block-title">音色列表</div>
+              <div id="voiceList" class="voice-list"></div>
+            </div>
+          </div>
+
+          <!-- 页：画面 -->
+          <div class="tab-page" id="tab-frame" role="tabpanel">
+            <div class="block">
+              <div class="block-title">方向（推流画幅）</div>
+              <div class="stage-orient" id="orientGroup" role="group">
+                <button type="button" class="orient-btn" data-orient="portrait">📱 竖屏 9:16</button>
+                <button type="button" class="orient-btn" data-orient="landscape">🖥️ 横屏 16:9</button>
+                <button type="button" class="orient-btn" data-orient="square">⬜ 方形 1:1</button>
+              </div>
+              <p class="hint tight">抖音/快手建议竖屏；电脑直播可选横屏。</p>
+            </div>
+            <div class="block">
+              <div class="block-title">显示方式</div>
+              <div class="stage-fit" id="fitGroup" role="group">
+                <button type="button" class="orient-btn" data-fit="contain">完整显示（推荐）</button>
+                <button type="button" class="orient-btn" data-fit="cover">铺满裁剪</button>
+              </div>
+              <p class="hint tight">完整显示=人物全身，可有黑边；铺满可能裁切。</p>
+            </div>
+            <div class="block">
+              <div class="block-title">待机视频怎么准备</div>
+              <ul class="hint tight guide-list">
+                <li>上传角色正脸图后，点素材中心「从照片生成预设视频」</li>
+                <li>待机应是 <b>小幅微动</b>（呼吸/轻晃），约 2～3 秒可循环</li>
+                <li>不要用整段表演/走位视频当 idle，否则一切换说话会很跳</li>
+                <li>系统只循环待机片前几秒；有话术再切「说话」成片</li>
+              </ul>
+              <a class="btn ghost sm" href="/materials">去素材中心上传 idle</a>
+            </div>
+          </div>
+
+          <!-- 页：人设 -->
+          <div class="tab-page" id="tab-persona" role="tabpanel">
+            <div class="block persona-box" id="personaBox">
+              <div class="block-title">人设</div>
+              <label class="field tight">昵称 <input id="personaName" /></label>
+              <label class="field tight">开场白 <input id="personaGreeting" placeholder="大家好，欢迎来到直播间" /></label>
+              <label class="field tight">性格 / 话术
+                <textarea id="personaPrompt" rows="4" placeholder="你是谁、怎么说话…"></textarea>
+              </label>
+              <div class="rtmp-actions">
+                <button type="button" class="btn ghost sm" id="btnSavePersona">保存</button>
+                <button type="button" class="btn ghost sm" id="btnChatTest">试聊</button>
+              </div>
+              <input id="chatTestInput" type="hidden" value="你好呀，介绍一下你自己" />
+              <pre id="chatTestOut" class="log hidden">试聊结果</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部固定开播条（始终可见，不用滚） -->
+        <footer class="go-dock">
+          <button type="button" class="btn start block" id="btnPrimaryGo">🚀 开始预览</button>
+          <button type="button" class="btn danger block hidden" id="btnStop">结束 · Alt+Q</button>
+          <p class="hint center tight" id="goHint">Alt+0 预览 · Alt+1 抖音 · Alt+S 开播 · Alt+Q 关</p>
+        </footer>
+      </aside>
+    </div>
+
+    <!-- 兼容旧 id（脚本仍可能引用） -->
+    <div class="hidden" aria-hidden="true">
+      <div id="homeView"></div>
+      <div id="setupView" class="hidden"></div>
+      <div id="liveView"></div>
+      <button type="button" id="btnQuickStart"></button>
+      <button type="button" id="btnStart"></button>
+      <button type="button" id="btnShowSetup"></button>
+      <button type="button" id="btnBackHome"></button>
+      <button type="button" id="btnOpenSettings2"></button>
+      <button type="button" id="btnGoLiveNow"></button>
+      <div id="homeSteps"></div>
+      <div id="homePct"></div>
+      <div id="homeNext"></div>
+      <div id="heroLead"></div>
+      <div id="startSummary"></div>
+      <div id="runtimeGuide"></div>
+      <div id="platformGrid"></div>
+      <div id="previewTip"></div>
+      <div id="rtmpFields"></div>
+      <div id="step2Title"></div>
+      <div id="step2Lead"></div>
+      <div id="liveTitle"></div>
+      <div id="liveSub"></div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <div id="hotkeyOverlay" class="overlay hidden" aria-hidden="true">
+      <div class="drawer hotkey-drawer" role="dialog">
+        <header class="drawer-head">
+          <div>
+            <h2>快捷键</h2>
+            <p class="hint">Alt 组合键；页签可用 1–5 数字键切换（不在输入框时）</p>
+          </div>
+          <button type="button" class="btn ghost sm" id="btnCloseHotkey">关闭</button>
+        </header>
+        <div class="drawer-body">
+          <table class="hotkey-table">
+            <tr><td><kbd>1</kbd>–<kbd>5</kbd></td><td>开播 / 互动 / 声音 / 画面 / 人设</td></tr>
+            <tr><td><kbd>Alt</kbd>+<kbd>0</kbd></td><td>本机预览</td></tr>
+            <tr><td><kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>5</kbd></td><td>抖音…TikTok 推流</td></tr>
+            <tr><td><kbd>Alt</kbd>+<kbd>S</kbd></td><td>开播</td></tr>
+            <tr><td><kbd>Alt</kbd>+<kbd>Q</kbd></td><td>关播</td></tr>
+            <tr><td><kbd>Alt</kbd>+<kbd>/</kbd></td><td>本说明</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="settingsOverlay" class="overlay hidden" aria-hidden="true">
+      <div class="drawer" role="dialog">
+        <header class="drawer-head">
+          <div>
+            <h2>配置</h2>
+            <p class="hint">最上方是图生视频（必填）· Key 保存在本机 .env</p>
+          </div>
+          <button type="button" class="btn ghost sm" id="btnCloseSettings">关闭</button>
+        </header>
+        <div id="settingsBody" class="drawer-body"></div>
+        <footer class="drawer-foot">
+          <button type="button" class="btn ghost" id="btnTestDeepseek">测对话</button>
+          <button type="button" class="btn ghost" id="btnTestMinimax">测声音</button>
+          <button type="button" class="btn ghost" id="btnTestOllama">测 Ollama</button>
+          <button type="button" class="btn primary" id="btnSaveSettings">保存</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+room_id: demo
+title: 演示直播间
+
+avatar:
+  dir: data/avatars/demo
+  default_action: idle
+
+persona:
+  name: 小助手
+  system_prompt: |
+    你是直播间数字人助手。回复不超过30字，口语化，友善。
+    不要讨论政治、色情、违禁品。
+  greeting: 大家好，欢迎来到直播间。
+  temperature: 0.7
+
+tts:
+  voice_id: ""   # 空则使用 default.yaml 的 default_voice_id
+
+stream:
+  platform: douyin
+  # 完整推流地址 = rtmp_url + "/" + key；key 来自环境变量 ROOM_DEMO_RTMP_KEY
+  rtmp_url: rtmp://push-rtmp-fx.douyin.com/live/
+  # 可用环境变量 ROOM_DEMO_RTMP_URL 覆盖整段 URL 前缀
+
+script:
+  - id: open
+    text: 大家好，欢迎来到直播间。
+    action: wave
+  - id: intro
+    text: 今天给大家分享三个小技巧，记得点点关注。
+    action: nod
+  - id: tip1
+    text: 第一，先把问题说清楚，再动手。
+    action: nod
+  - id: close
+    text: 感谢支持，我们下期见。
+    action: thanks_wave

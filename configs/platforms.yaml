@@ -1,0 +1,117 @@
+# 直播平台预设：用户选平台即可带出推流地址与操作说明
+platforms:
+  preview:
+    id: preview
+    name: 仅预览
+    short: 不推到任何平台，本机先试效果
+    icon: 👀
+    recommended_for_first_use: true
+    dry_run: true
+    rtmp_url: ""
+    key_label: ""
+    guide:
+      title: 适合第一次使用
+      steps:
+        - 点「仅预览」后，直接点「开始直播」
+        - 在下方输入框跟数字人对话，看回复是否正常
+        - 确认没问题后，再回来选抖音/快手等真平台
+
+  douyin:
+    id: douyin
+    name: 抖音
+    short: 直播伴侣获取推流码
+    icon: 🎵
+    dry_run: false
+    rtmp_url: rtmp://push-rtmp-fx.douyin.com/live/
+    key_label: 推流码（服务器后面那一串）
+    help_url: https://streamingtool.douyin.com/
+    guide:
+      title: 抖音如何拿到推流码（约 2 分钟）
+      steps:
+        - 电脑打开「直播伴侣」或抖音创作者服务平台
+        - 开始直播前，找到「推流直播 / 第三方推流 / RTMP」
+        - 复制「服务器」地址（一般已自动填好）和「推流码」
+        - 把推流码粘贴到本页，点「开始直播」
+        - 回到直播伴侣/抖音，确认画面已进入直播间
+      tips:
+        - 推流码会过期，每次开播建议重新复制
+        - 数字人直播请遵守平台规则，必要时完成报备
+        - 我们不会替你登录抖音账号，推流码只保存在本机
+
+  kuaishou:
+    id: kuaishou
+    name: 快手
+    short: 直播伴侣第三方推流
+    icon: ⚡
+    dry_run: false
+    rtmp_url: rtmp://push.kuaishou.com/live/
+    key_label: 推流码
+    help_url: https://www.kuaishou.com/
+    guide:
+      title: 快手如何拿到推流码
+      steps:
+        - 打开快手「直播伴侣」或直播管理后台
+        - 选择「第三方推流 / RTMP 推流」
+        - 复制服务器地址与推流密钥
+        - 粘贴到本页后点「开始直播」
+      tips:
+        - 部分账号需先开通直播权限
+        - 推流失败时先检查是否已点「开始直播」
+
+  wechat:
+    id: wechat
+    name: 视频号
+    short: 视频号助手获取推流
+    icon: 💬
+    dry_run: false
+    rtmp_url: rtmp://wxalivepush.weixin.qq.com/live/
+    key_label: 推流码
+    help_url: https://channels.weixin.qq.com/
+    guide:
+      title: 视频号如何拿到推流码
+      steps:
+        - 打开「视频号助手」网页或 App
+        - 进入直播 → 选择电脑直播 / 第三方推流
+        - 复制 RTMP 地址与推流码
+        - 粘贴后点「开始直播」，再在视频号侧确认开播
+      tips:
+        - 视频号常要求企业/认证主体，个人号以平台实际为准
+        - 推流码与直播场次绑定，过期需重新获取
+
+  xiaohongshu:
+    id: xiaohongshu
+    name: 小红书
+    short: 专业直播推流
+    icon: 📕
+    dry_run: false
+    rtmp_url: rtmp://push-redbook.xiaohongshu.com/live/
+    key_label: 推流码
+    help_url: https://www.xiaohongshu.com/
+    guide:
+      title: 小红书如何拿到推流码
+      steps:
+        - 在小红书创作者/直播后台开通直播
+        - 选择「专业直播设备 / 第三方推流」
+        - 复制推流服务器与推流码
+        - 填入本页后点「开始直播」
+      tips:
+        - 小红书对数字人政策可能调整，请以平台最新规则为准
+        - 若后台无推流入口，说明当前账号未开放该能力
+
+  tiktok:
+    id: tiktok
+    name: TikTok
+    short: LIVE Studio / 推流码
+    icon: 🌍
+    dry_run: false
+    rtmp_url: rtmp://push-rtmp-fx.tiktok.com/live/
+    key_label: Stream Key
+    guide:
+      title: TikTok 如何拿到推流码
+      steps:
+        - 使用 TikTok LIVE Studio 或官方推流设置
+        - 复制 Server URL 与 Stream Key
+        - 填入后开始直播
+      tips:
+        - 不同地区入口略有差异
+        - 请遵守当地与平台对 AI 内容的规定

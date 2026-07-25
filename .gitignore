@@ -1,0 +1,100 @@
+# =============================================================
+#  AI 数字人直播 — Git 忽略规则
+#  原则：所有含个人素材、密钥、推流码、运行期产物的内容都不入库
+# =============================================================
+
+# ---------- 1. 环境与密钥（最重要，绝不入库）----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# ---------- 2. 依赖与虚拟环境----------
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- 3. 系统与编辑器产物----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---------- 4. 运行期数据库 / 日志 / 缓存----------
+data/app.db
+data/*.db
+*.log
+logs/
+logs/*.log
+
+# 个人/敏感素材与运行期音频视频缓存（示例占位除外）
+data/avatars/c*/
+data/avatars/*/source/*
+data/avatars/*/source/.*
+data/avatars/*/actions/*
+data/avatars/*/actions/.*
+data/avatars/*/looks/*
+data/avatars/*/generated/*
+data/audio/live/
+data/audio/*/live/
+data/audio/*.wav
+data/audio/*/*.wav
+data/audio/*/*/*.wav
+data/output/clips/c*/
+data/output/clips/*/*.mp4
+data/output/clips/*/*/*.mp4
+data/output/*/broadcast.mp4
+data/output/*/playlist.txt
+data/temp/
+data/voices/*/preview/
+data/voices/*/sample/
+data/voices/*/*.wav
+
+# 调试截图（仅本地留存）
+data/_layout_fix_*.png
+
+# ---------- 5. 根目录下的原始演示素材（用户照片/参考视频，不入库）----------
+参考预设人物*.mp4
+预设人物图片.jpg
+ai数字人.zip
+
+# ---------- 6. 模型权重 / 大文件（LFS 友好，但默认本地忽略）----------
+models/
+models/*
+!models/.gitkeep
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.bin
+*.gguf
+*.ckpt
+*.zip
+*.tar.gz
+*.7z
+
+# ---------- 7. 临时测试 / 调试产物----------
+tmp/
+.cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+node_modules/
+
+# 允许跟踪的占位文件（保证空目录被纳入）
+!.gitkeep

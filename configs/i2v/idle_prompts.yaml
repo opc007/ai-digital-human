@@ -1,0 +1,23 @@
+# 产品侧待机图生视频提示词（用户不可改）
+# 依据行业 I2V 实践（Seedance / 可灵 / Vidu / HeyGen）：
+# - 图生视频只写「动什么」，不要复述人物外貌
+# - 60～100 词槽位结构；一次只设 1 个主动作 + 1 个次动作
+# - 镜头必须写死 static / locked-off（勿写 handheld breathing / lens breathing，那是运镜词）
+# - 时长宜短（4s）；全身图更容易推拉，半身更稳
+
+idle:
+  seconds: "4"
+  size: "9:16"
+  same_last_frame: false
+  still_mix: 0
+  # 槽位式短提示（英文镜头词 + 中文微动，模型更听话）
+  prompt: |
+    [Subject action] The person stays almost still, blinks naturally once or twice, with a very soft shallow breath (tiny chest/shoulder micro-motion only, not a sigh).
+    [Secondary motion] A few hair strands shift very slightly; clothing fabric barely moves.
+    [Camera] Static locked-off shot, tripod, eye level, no camera movement, no zoom, no dolly, no pan, no tilt. Preserve exact framing and composition from the reference image.
+    [Style] Photographic, natural pace, sharp and clear.
+    [Identity] Maintain exact appearance from the reference image; preserve composition, colors, face, hair, and clothing.
+  negative: |
+    camera move, zoom in, zoom out, dolly, pan, tilt, handheld, lens breathing,
+    warp, morph, face drift, background drift, blur, soft focus, deep sigh, big chest heave,
+    talking, mouth open wide, waving, walking, turning away, extra people, text, watermark

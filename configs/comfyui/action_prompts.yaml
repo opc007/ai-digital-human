@@ -1,0 +1,19 @@
+# 每个动作对应的生成提示词（供 ComfyUI 工作流使用）
+actions:
+  idle:
+    label: 待机循环
+    prompt: "A person standing naturally, subtle breathing, looking at camera, indoor bright lighting, fixed camera, 3 seconds"
+  wave:
+    label: 挥手
+    prompt: "A friendly person waving right hand, smiling, looking at camera, indoor setting, bright lighting, 3 seconds"
+  nod:
+    label: 点头
+    prompt: "A person nodding head gently, polite smile, looking at camera, indoor setting, 3 seconds"
+  thinking:
+    label: 思考
+    prompt: "A person with hand on chin, thinking expression, looking slightly up, indoor setting, 3 seconds"
+  thanks_wave:
+    label: 感谢
+    prompt: "A person waving hand gratefully, sweet smile, thank you gesture, looking at camera, 3 seconds"
+
+negative: "blurry, distorted face, extra fingers, deformed, low quality, watermark"

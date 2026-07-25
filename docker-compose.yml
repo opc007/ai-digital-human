@@ -1,0 +1,26 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8100:8100"
+    env_file:
+      # .env 缺失也能启动（首次可复制 .env.example，或进控制台「配置」填写）
+      # required: false 需要 Docker Compose >= 2.24
+      - path: .env
+        required: false
+    environment:
+      - APP_ENV=production
+      - REQUIRE_AUTH=1
+      - API_TOKEN=${API_TOKEN:-change-me}
+    volumes:
+      - ./data:/app/data
+      - ./configs:/app/configs
+      - ./models:/app/models
+    # GPU 口型需要时取消注释（NVIDIA Container Toolkit）:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

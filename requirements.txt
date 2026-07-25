@@ -1,0 +1,19 @@
+# 全量 MVP 依赖（阶段 0～2）
+pyyaml>=6.0.1
+python-dotenv>=1.0.1
+httpx>=0.27.0
+pydantic>=2.8.0
+pydantic-settings>=2.4.0
+structlog>=24.4.0
+rich>=13.7.0
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+websockets>=13.1
+python-multipart>=0.0.9
+sqlalchemy>=2.0.36
+aiosqlite>=0.20.0
+jinja2>=3.1.4
+openai>=1.54.0
+# 本地 TTS 可选（runtime_mode=local 时更自然）
+edge-tts>=6.1.0

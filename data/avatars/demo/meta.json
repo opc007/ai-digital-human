@@ -1,0 +1,37 @@
+{
+  "id": "demo",
+  "name": "演示形象",
+  "source_image": "source/photo.jpg",
+  "actions": [
+    {
+      "name": "idle",
+      "file": "actions/idle.mp4",
+      "duration_ms": 3000,
+      "category": "idle"
+    },
+    {
+      "name": "wave",
+      "file": "actions/wave.mp4",
+      "duration_ms": 3000,
+      "category": "greeting"
+    },
+    {
+      "name": "nod",
+      "file": "actions/nod.mp4",
+      "duration_ms": 2500,
+      "category": "emotion"
+    },
+    {
+      "name": "thinking",
+      "file": "actions/thinking.mp4",
+      "duration_ms": 3000,
+      "category": "emotion"
+    },
+    {
+      "name": "thanks_wave",
+      "file": "actions/thanks_wave.mp4",
+      "duration_ms": 3000,
+      "category": "thanks"
+    }
+  ]
+}

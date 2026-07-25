@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="mat-wizard-html">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>素材中心 — 创作角色</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/materials.css" />
+</head>
+<body class="no-scroll mat-wizard-body">
+  <div class="app materials-app wizard-shell">
+    <header class="top bar wiz-top">
+      <div class="brand row">
+        <h1>创作角色</h1>
+        <span class="sub hide-sm" id="wizSub">第 1 / 4 步</span>
+      </div>
+      <div class="top-right">
+        <a class="btn ghost sm" href="/">← 开播台</a>
+        <button type="button" class="btn ghost sm" id="btnOpenSettings">全部配置</button>
+        <button type="button" class="btn ghost sm" id="btnMoreTools">声音/其它</button>
+      </div>
+    </header>
+
+    <ol class="flow-steps wiz-steps" id="flowSteps" aria-label="制作步骤">
+      <li data-step="1" class="flow-step current"><button type="button" class="flow-hit" data-goto="1"><span class="n">1</span>配置模型</button></li>
+      <li data-step="2" class="flow-step"><button type="button" class="flow-hit" data-goto="2"><span class="n">2</span>创建角色</button></li>
+      <li data-step="3" class="flow-step"><button type="button" class="flow-hit" data-goto="3"><span class="n">3</span>上传造型</button></li>
+      <li data-step="4" class="flow-step"><button type="button" class="flow-hit" data-goto="4"><span class="n">4</span>生成预览</button></li>
+    </ol>
+
+    <main class="wiz-main" id="wizMain">
+      <!-- 1 -->
+      <section class="wiz-page active" data-page="1" id="pageConfig">
+        <div class="wiz-card">
+          <div class="step-head">
+            <h2>配置视频模型</h2>
+            <span class="step-status" id="cfgStatus">未配置</span>
+          </div>
+          <p class="hint">先填好这三项，后面才能生成待机视频。Key 只保存在本机。</p>
+          <div class="i2v-fields" id="i2vFields">
+            <label>接口地址
+              <input type="text" id="i2vBaseUrl" placeholder="https://your-i2v-gateway.example/v1" autocomplete="off" />
+            </label>
+            <label>API Key
+              <div class="pw-row">
+                <input type="password" id="i2vApiKey" placeholder="sk-..." autocomplete="off" />
+                <button type="button" class="btn ghost sm" id="btnToggleI2vKey">显示</button>
+              </div>
+            </label>
+            <label>模型名
+              <input type="text" id="i2vModel" placeholder="doubao-seedance-1-5-pro_720p" autocomplete="off" />
+            </label>
+          </div>
+          <div class="btns">
+            <button type="button" class="btn primary" id="btnSaveI2v">保存并继续</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section class="wiz-page" data-page="2" id="pageChar">
+        <div class="wiz-card">
+          <div class="step-head">
+            <h2>创建 / 选择角色</h2>
+            <span class="step-status muted" id="charStatus">选一个或新建</span>
+          </div>
+          <p class="hint">起个名字新建，或点下面已有角色卡片选用。</p>
+          <div class="char-create-row create-box">
+            <input id="newCharName" type="text" placeholder="角色名字，例如：小美" maxlength="32" />
+            <button type="button" class="btn primary" id="btnCreateChar">新建角色</button>
+          </div>
+          <div id="charEmpty" class="empty-hint hidden">还没有角色，先在上方新建一个。</div>
+          <div class="wiz-scroll">
+            <div id="charList" class="char-grid"></div>
+          </div>
+          <div class="btns row-actions">
+            <button type="button" class="btn ghost sm danger-soft" id="btnDeleteChar">删除当前角色</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section class="wiz-page" data-page="3" id="pageLook">
+        <div class="wiz-card">
+          <div class="step-head">
+            <h2>上传造型照片</h2>
+            <span class="step-status muted" id="lookStatus">待上传</span>
+          </div>
+          <p class="hint" id="lookHint">推荐半身胸像、正面、光线均匀、嘴巴自然闭合。</p>
+          <div class="char-create-row">
+            <input id="newLookName" type="text" placeholder="新造型名，例如：礼服（可空）" maxlength="32" />
+            <button type="button" class="btn ghost" id="btnAddLook">添加造型</button>
+            <button type="button" class="btn ghost sm" id="btnDeleteLook">删除造型</button>
+          </div>
+          <div class="wiz-scroll">
+            <div id="lookList" class="look-grid"></div>
+            <div class="upload-block">
+              <div id="sourcePreview" class="preview-box large">暂无照片</div>
+              <div class="upload-actions">
+                <input type="file" id="sourceFile" accept="image/*" />
+                <button type="button" class="btn primary" id="btnUploadSource">上传 / 更换照片</button>
+                <p class="hint">jpg / png / webp</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 -->
+      <section class="wiz-page" data-page="4" id="pageIdle">
+        <div class="wiz-card highlight-card">
+          <div class="step-head">
+            <h2>生成并预览待机</h2>
+            <span class="step-status muted" id="idleStatus">未生成</span>
+          </div>
+          <p class="hint">点生成后等待完成；点左侧画面可放大预览，不好看可删除重来。</p>
+          <div class="idle-preview-wrap" id="idlePreviewWrap">
+            <button type="button" class="idle-preview-hit" id="btnIdlePreview" title="点击预览" disabled>
+              <video id="idlePreviewVideo" muted playsinline loop preload="metadata"></video>
+              <div class="idle-preview-empty" id="idlePreviewEmpty">还没有待机视频</div>
+              <span class="idle-play-badge hidden" id="idlePlayBadge">▶ 点击预览</span>
+            </button>
+            <div class="idle-preview-side">
+              <p class="hint" id="presetGenStatus">准备好后点下方生成。</p>
+              <div class="btns">
+                <button type="button" class="btn start" id="btnGenPreset">生成呼吸待机</button>
+                <button type="button" class="btn ghost" id="btnDeleteIdle" disabled>删除待机</button>
+              </div>
+              <a class="btn primary go-live" id="btnGoLive" href="/">完成，去开播台 →</a>
+            </div>
+          </div>
+          <details class="advanced-block">
+            <summary>更多动作（可选）</summary>
+            <div id="actionList" class="action-grid"></div>
+          </details>
+        </div>
+      </section>
+
+      <!-- 其它：声音 / Comfy（不进主流程） -->
+      <section class="wiz-page" data-page="more" id="pageMore">
+        <div class="wiz-card">
+          <div class="step-head">
+            <h2>声音与其它</h2>
+          </div>
+          <p class="hint">这些不是创建角色必做项，做完角色后可再来。</p>
+          <div class="more-grid">
+            <div>
+              <h3>TTS 试听</h3>
+              <textarea id="ttsText" rows="2">大家好，欢迎来到直播间。</textarea>
+              <div class="btns">
+                <button type="button" class="btn primary" id="btnTtsPreview">生成试听</button>
+              </div>
+              <audio id="ttsAudio" controls class="audio-player"></audio>
+              <div class="btns" style="margin-top:10px">
+                <input type="file" id="voiceSample" accept="audio/*" />
+                <button type="button" class="btn ghost" id="btnUploadVoice">上传参考音频</button>
+              </div>
+              <div id="voiceSamples" class="sample-list"></div>
+            </div>
+            <div>
+              <h3>本地 ComfyUI（可选）</h3>
+              <label>地址
+                <input id="comfyUrl" type="text" placeholder="http://127.0.0.1:8000" />
+              </label>
+              <div class="btns">
+                <button type="button" class="btn primary" id="btnSaveComfy">保存</button>
+                <button type="button" class="btn ghost" id="btnTestComfy">测试</button>
+              </div>
+              <div id="comfyStatus" class="key-status">—</div>
+              <div id="genList" class="gen-list"></div>
+              <div class="btns">
+                <button type="button" class="btn ghost" id="btnGenMissing">排队生成缺失动作</button>
+                <button type="button" class="btn ghost" id="btnRefreshJobs">刷新任务</button>
+              </div>
+              <div id="jobList" class="job-list"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wiz-foot" id="wizFoot">
+      <button type="button" class="btn ghost" id="btnWizBack" disabled>上一步</button>
+      <div class="wiz-foot-mid" id="wizFootHint">保存配置后进入下一步</div>
+      <button type="button" class="btn primary" id="btnWizNext">下一步</button>
+    </footer>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <div id="settingsOverlay" class="overlay hidden" aria-hidden="true">
+      <div class="drawer" role="dialog">
+        <header class="drawer-head">
+          <div>
+            <h2>全部配置</h2>
+            <p class="hint">图生视频在最上方</p>
+          </div>
+          <button type="button" class="btn ghost sm" id="btnCloseSettings">关闭</button>
+        </header>
+        <div id="settingsBody" class="drawer-body"></div>
+        <footer class="drawer-foot">
+          <button type="button" class="btn primary" id="btnSaveSettings">保存配置</button>
+        </footer>
+      </div>
+    </div>
+
+    <div id="videoLightbox" class="overlay hidden" aria-hidden="true">
+      <div class="lightbox-panel">
+        <header class="drawer-head">
+          <div>
+            <h2>待机预览</h2>
+            <p class="hint">不满意可删除再生成</p>
+          </div>
+          <button type="button" class="btn ghost sm" id="btnCloseLightbox">关闭</button>
+        </header>
+        <div class="lightbox-body">
+          <video id="lightboxVideo" controls playsinline loop muted></video>
+        </div>
+        <footer class="drawer-foot">
+          <button type="button" class="btn ghost" id="btnLightboxMute">开声 / 静音</button>
+          <button type="button" class="btn ghost danger-soft" id="btnLightboxDelete">删除这段视频</button>
+          <button type="button" class="btn primary" id="btnCloseLightbox2">完成</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="uploadDlg">
+    <form method="dialog" class="dlg">
+      <h3 id="dlgTitle">上传动作</h3>
+      <input type="hidden" id="dlgAction" />
+      <input type="file" id="dlgFile" accept="video/mp4,video/webm,video/*" />
+      <div class="btns">
+        <button type="submit" class="btn ghost" value="cancel">取消</button>
+        <button type="button" class="btn primary" id="dlgOk">上传</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/static/materials.js"></script>
+</body>
+</html>

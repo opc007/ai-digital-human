@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # 1) 敏感信息扫描：拦截误把 Key / 推流码提交进仓库的 PR
+  secrets-scan:
+    name: 敏感信息扫描
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 检查 .env / 密钥常见模式
+        run: |
+          set -e
+          echo "::group::扫描误提交的密钥"
+          # 常见 provider 前缀的 sk- / ghp_ / xoxb- 等
+          if git grep -nE '(?i)(sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|xoxb-[A-Za-z0-9-]{20,}|AKIA[0-9A-Z]{16})' -- ':!.venv' ':!.github' ':!docs' ':!CHANGELOG.md' ':!SECURITY.md'; then
+            echo "::error::检测到疑似密钥，请立即轮换并从历史中移除（见 SECURITY.md）"
+            exit 1
+          fi
+
+          # RTMP 推流码（常见形如 ?txSecret=...&txTime=... 或 32+ 字符的 KEY 段）
+          if git grep -nE 'txSecret=[A-Za-z0-9]{20,}|txTime=[0-9a-f]{8,}' -- ':!.venv' ':!docs' ':!SECURITY.md'; then
+            echo "::error::检测到疑似推流码（txSecret/txTime），请立刻轮换并删除"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+      - name: 确保 .env、*.db、个人素材未被提交
+        run: |
+          set -e
+          for pattern in ".env" "data/app.db" "data/avatars/*/source/" "data/avatars/*/actions/" "data/audio/*.wav" "data/output/*/broadcast.mp4" "models/" ".venv/"; do
+            if git ls-files | grep -E "^${pattern%/}(/|$)" >/dev/null; then
+              echo "::error::发现不应入库的路径被追踪：${pattern}"
+              git ls-files | grep -E "^${pattern%/}(/|$)" || true
+              exit 1
+            fi
+          done
+
+  # 2) 环境自检与冒烟（不依赖外部 API）
+  smoke:
+    name: 环境自检 + 互动编排冒烟
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装系统依赖（ffmpeg）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: 安装 Python 依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 环境自检
+        run: python scripts/00_check_env.py || true
+
+      - name: 生成占位动作
+        run: python scripts/make_placeholder_actions.py
+
+      - name: 互动编排冒烟（不启 HTTP）
+        run: python scripts/08_smoke_interactive.py
+
+      - name: 控制台冒烟（拉起 30s 后关闭）
+        run: |
+          set -e
+          APP_PORT=18100 REQUIRE_AUTH=1 API_TOKEN=test-token python scripts/07_run_api.py --host 127.0.0.1 --port 18100 &
+          PID=$!
+          sleep 6
+          curl -fsS http://127.0.0.1:18100/ >/dev/null
+          curl -fsS http://127.0.0.1:18100/docs >/dev/null
+          kill $PID || true
+          wait $PID || true
