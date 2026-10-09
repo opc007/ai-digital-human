@@ -276,3 +276,38 @@ ollama pull qwen2.5:7b
 本仓库使用 [MIT License](LICENSE)。
 
 > 第三方服务的商标、模型权重与平台推流协议归各自方所有；本项目仅做工程集成，请在遵守各服务商 ToS 与当地法规的前提下使用。
+---
+
+## 宣讲带货模式（promo mode）
+
+教学/宣讲型直播专用：**左产品官网、右数字人**分屏；没人提问时自动宣讲，
+有人提问立即按知识库解答。通用设计——换掉 `knowledge/` 里的文档、改几行配置，
+就能推自己的产品。
+
+```bash
+# 1) 一键配置（生成网站截图等物料，不需要 Key）
+python scripts/13_promo_setup.py --room promo
+
+# 2) 冒烟测试（KB检索 + 分屏合成 + mock全链路）
+python scripts/13_promo_setup.py --room promo --smoke
+
+# 3) 开播：控制台选 promo 房间，或 API
+# POST /api/v1/live/start  {"room_id": "promo", "mode": "interactive"}
+```
+
+### 换成自己的产品（3 步）
+
+1. 把 `knowledge/ai-dian-ying-meng.md` 换成你的产品文档（简介/价格/FAQ），文件名随意；
+2. 改写 `knowledge/promo_script.md`（每行一条闲时宣讲）；
+3. 在房间 yaml 的 `promo` 节改 `product_name / website_url`（示例见 `configs/rooms/promo.yaml`）。
+
+### 配置项（`configs/default.yaml` → `promo` 节，房间可逐项覆盖）
+
+| 项 | 默认 | 说明 |
+|---|---|---|
+| `enabled` | `false` | 总开关；关闭时行为与原来完全一致 |
+| `layout` | `avatar_only` | `split`=左网站右人物；`website_only`=仅网站 |
+| `idle_seconds` | `45` | 空闲超此秒数自动宣讲 |
+| `website_refresh_sec` | `600` | 网站截图刷新间隔（秒），`0`=只抓一次 |
+
+详细开发思路与文件级细节见 [docs/宣讲模式-开发规划.md](docs/宣讲模式-开发规划.md)。
