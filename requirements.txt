@@ -15,5 +15,10 @@ sqlalchemy>=2.0.36
 aiosqlite>=0.20.0
 jinja2>=3.1.4
 openai>=1.54.0
+# 宣讲模式：无浏览器时生成品牌占位图（compose.make_website_placeholder 必需）
+Pillow>=10.0.0
 # 本地 TTS 可选（runtime_mode=local 时更自然）
 edge-tts>=6.1.0
+# 宣讲模式可选增强：能装 chromium 时抓真实网站首屏，替代占位图
+# 安装：pip install playwright && playwright install chromium
+# playwright>=1.40.0

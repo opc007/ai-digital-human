@@ -40,6 +40,22 @@ def ffmpeg_available() -> bool:
     return find_ffmpeg() is not None
 
 
+@lru_cache(maxsize=1)
+def find_ffprobe() -> str | None:
+    env = os.getenv("FFPROBE_PATH")
+    if env and Path(env).is_file():
+        return env
+    which = shutil.which("ffprobe")
+    if which:
+        return which
+    exe = find_ffmpeg()
+    if exe:
+        cand = Path(exe).with_name("ffprobe" + Path(exe).suffix)
+        if cand.is_file():
+            return str(cand)
+    return None
+
+
 def run_ffmpeg(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     exe = find_ffmpeg()
     if not exe:

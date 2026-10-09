@@ -232,6 +232,11 @@ class LiveOrchestrator:
         self.mode = mode
         self._stop.clear()
         self.last_error = ""
+        # 开播=新的一局：开场白标记与宣讲轮播指针都要复位，否则重开房间会跳过打招呼
+        self._greeted = False
+        self._promo_speaking = False
+        self._promo_idx = 0
+        self._last_activity = time.time()
 
         rtmp = rtmp_url or self.room.full_rtmp_url()
         if self.dry_run_stream:
@@ -461,6 +466,10 @@ class LiveOrchestrator:
             except Exception as e:
                 self.last_error = str(e)
                 logger.exception("handle failed")
+                # 任何异常出口都要复位 _promo_speaking：否则宣讲中 TTS/口型失败后
+                # 标记会一直为 True，导致之后每条真人提问都误触发 interrupt()
+                # 清空队列，把排队中的其它提问一起丢掉。
+                self._promo_speaking = False
                 self._emit({"type": "error", "code": "handle_failed", "message": str(e)})
                 self.state = LiveState.IDLE
 
@@ -589,6 +598,15 @@ class LiveOrchestrator:
                     "\n\n" + self.kb.format_context(chunks)
                     + "\n回答时优先引用知识库中的具体信息（如功能名、价格），"
                     "不要编造知识库没有的内容；答不上来就说“这个问题我记下了”并转回产品介绍。"
+                )
+            else:
+                # 检索是纯字面 bigram 匹配，问法与知识库原文用词不同就会零命中
+                # （观众问「多少钱」，知识库写「售价…元」）。此时**不能**放任模型
+                # 自由发挥——那正是「不编造」要防的幻觉。显式收口。
+                kb_ctx = (
+                    "\n\n【产品知识库】本次检索**没有命中任何知识库内容**。"
+                    "你不知道这个问题的答案。绝对不要编造价格、功能名、承诺或政策；"
+                    "只回答一句“这个具体问题我记下了，稍后为你解答”，然后把话题转回产品介绍。"
                 )
         # 强制直播口播约束，抑制 thinking 模型输出英文草稿
         sys_prompt = (
