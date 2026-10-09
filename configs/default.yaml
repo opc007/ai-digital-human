@@ -58,6 +58,23 @@ limits:
   max_queue: 50
   user_msg_per_30s: 3
 
+# 宣讲带货模式：数字人按知识库答疑 + 闲时自动宣讲产品
+# 房间 yaml 里的 promo 节可逐项覆盖；默认关闭，不影响原有行为
+promo:
+  enabled: false
+  # 画面布局：avatar_only=仅人物（原行为）| split=左网站右人物 | website_only=仅网站画面+人物声音
+  layout: avatar_only
+  knowledge_dir: knowledge
+  promo_script: knowledge/promo_script.md
+  # 队列空闲超过该秒数，自动播报下一条宣讲
+  idle_seconds: 45
+  product_name: "AI电影梦"
+  website_url: "https://www.ainn.asia"
+  website_title: "AI电影梦"
+  # 网站截图后台刷新间隔（秒），0=开播抓一次不再刷新
+  website_refresh_sec: 600
+  kb_top_k: 3
+
 paths:
   audio_dir: data/audio
   output_dir: data/output
