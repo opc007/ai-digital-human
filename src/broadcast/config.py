@@ -50,6 +50,21 @@ class RoomPersona(BaseModel):
     temperature: float = 0.7
 
 
+class RoomPromo(BaseModel):
+    """宣讲带货模式（房间级覆盖，全局默认见 configs/default.yaml 的 promo 节）。"""
+
+    enabled: bool | None = None
+    layout: str | None = None  # avatar_only | split | website_only
+    knowledge_dir: str | None = None
+    promo_script: str | None = None
+    idle_seconds: int | None = None
+    product_name: str | None = None
+    website_url: str | None = None
+    website_title: str | None = None
+    website_refresh_sec: int | None = None
+    kb_top_k: int | None = None
+
+
 class RoomConfig(BaseModel):
     room_id: str
     title: str = ""
@@ -58,6 +73,7 @@ class RoomConfig(BaseModel):
     tts_voice_id: str = ""
     stream: RoomStream = Field(default_factory=RoomStream)
     script: list[ScriptItem] = Field(default_factory=list)
+    promo: RoomPromo = Field(default_factory=RoomPromo)
 
     def avatar_path(self, root: Path | None = None) -> Path:
         root = root or project_root()
@@ -156,6 +172,7 @@ def load_room_config(room_id: str, app: AppConfig | None = None) -> RoomConfig:
         tts_voice_id=voice_id or "",
         stream=RoomStream(**stream_block),
         script=[ScriptItem(**x) for x in (data.get("script") or [])],
+        promo=RoomPromo(**(data.get("promo") or {})),
     )
 
 
