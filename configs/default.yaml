@@ -74,6 +74,9 @@ promo:
   # 网站截图后台刷新间隔（秒），0=开播抓一次不再刷新
   website_refresh_sec: 600
   kb_top_k: 3
+  # 同义词召回：观众说「多少钱/贵不贵」，知识库写「售价/定价」时靠它兜底。
+  # 置 0 可完全关闭（退回纯字面匹配）。同义组可在 knowledge/_aliases.txt 里追加。
+  kb_aliases: true
 
 paths:
   audio_dir: data/audio

@@ -173,7 +173,9 @@ class LiveOrchestrator:
             kb_path = Path(kb_dir)
             if not kb_path.is_absolute():
                 kb_path = self.app.root / kb_path
-            self.kb = KnowledgeBase(kb_path)
+            use_aliases = self.promo_cfg.get("kb_aliases")
+            use_aliases = True if use_aliases is None else bool(use_aliases)
+            self.kb = KnowledgeBase(kb_path, use_aliases=use_aliases)
             script_cfg = str(self.promo_cfg.get("promo_script") or "knowledge/promo_script.md")
             sp = Path(script_cfg)
             script_path = sp if sp.is_absolute() else self.app.root / sp

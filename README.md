@@ -301,6 +301,25 @@ python scripts/13_promo_setup.py --room promo --smoke
 2. 改写 `knowledge/promo_script.md`（每行一条闲时宣讲）；
 3. 在房间 yaml 的 `promo` 节改 `product_name / website_url`（示例见 `configs/rooms/promo.yaml`）。
 
+### 观众问「贵不贵」，你写的是「售价」——怎么办
+
+检索用的是中文 bigram 字面匹配 + 同义组扩展 + IDF 加权，零依赖、不用向量库。
+同义组让这两种说法互相找得到：
+
+```
+观众问：多少钱 / 贵不贵 / 值不值
+知识库：售价 1999 元，预付款充值，用多少扣多少
+```
+
+- **内置 8 组常见问法**（价格 / 耗时 / 用法 / 支持 / 对比 / 售后 / 功能 / 账号），开箱即用；
+- 补你自己产品的问法：编辑 `knowledge/_aliases.txt`，每行一组，组内词互为别名
+  （空格或 `|` 分隔）。格式见该文件内注释。
+
+检索**没命中**时不会让模型自由发挥——系统会显式收口，只播
+「这个具体问题我记下了」，绝不编造价格、功能名或政策。错误答案比不回答更伤直播间。
+
+IDF 加权同时压住了误命中：「今天天气怎么样」不会因为命中一个「怎么」就被当成产品问题。
+
 ### 配置项（`configs/default.yaml` → `promo` 节，房间可逐项覆盖）
 
 | 项 | 默认 | 说明 |
@@ -309,5 +328,16 @@ python scripts/13_promo_setup.py --room promo --smoke
 | `layout` | `avatar_only` | `split`=左网站右人物；`website_only`=仅网站 |
 | `idle_seconds` | `45` | 空闲超此秒数自动宣讲 |
 | `website_refresh_sec` | `600` | 网站截图刷新间隔（秒），`0`=只抓一次 |
+| `kb_top_k` | `3` | 每次最多注入几条知识库片段 |
+| `kb_aliases` | `true` | 同义召回开关；`false` 退回纯字面匹配 |
+
+### 抓不到真实网站画面？
+
+分屏左侧默认用无头浏览器截真实网站首屏。没装浏览器时会自动降级成品牌占位图，
+不影响开播。想要真实画面：
+
+```bash
+pip install playwright && playwright install chromium
+```
 
 详细开发思路与文件级细节见 [docs/宣讲模式-开发规划.md](docs/宣讲模式-开发规划.md)。

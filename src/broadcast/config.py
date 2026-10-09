@@ -63,6 +63,7 @@ class RoomPromo(BaseModel):
     website_title: str | None = None
     website_refresh_sec: int | None = None
     kb_top_k: int | None = None
+    kb_aliases: bool | None = None
 
 
 class RoomConfig(BaseModel):
