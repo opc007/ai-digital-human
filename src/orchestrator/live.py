@@ -145,6 +145,46 @@ class LiveOrchestrator:
             "dry_run": dry_run_stream,
         }
 
+        # ---- 宣讲带货模式（通用：知识库问答 + 闲时自动宣讲 + 网站分屏）----
+        promo_global = app.section("promo") or {}
+        room_promo: dict = {}
+        try:
+            room_promo = (room.promo.model_dump(exclude_none=True) if room.promo else {})
+        except Exception:
+            room_promo = {}
+        self.promo_cfg: dict = {**promo_global, **room_promo}
+        self.promo_enabled = bool(self.promo_cfg.get("enabled"))
+        self.promo_layout = str(self.promo_cfg.get("layout") or "avatar_only")
+        self.kb = None
+        self._promo_lines: list[str] = []
+        self._promo_idx = 0
+        self._last_activity = time.time()
+        self._promo_speaking = False
+        self._greeted = False
+        self._website_img: Path | None = None
+        self._idle_source: Path | None = None
+        self._idle_composed: Path | None = None
+        self._web_refresh_stop = threading.Event()
+        self._web_refresh_thread: threading.Thread | None = None
+        if self.promo_enabled:
+            from engines.knowledge import KnowledgeBase
+
+            kb_dir = str(self.promo_cfg.get("knowledge_dir") or "knowledge")
+            kb_path = Path(kb_dir)
+            if not kb_path.is_absolute():
+                kb_path = self.app.root / kb_path
+            self.kb = KnowledgeBase(kb_path)
+            script_cfg = str(self.promo_cfg.get("promo_script") or "knowledge/promo_script.md")
+            sp = Path(script_cfg)
+            script_path = sp if sp.is_absolute() else self.app.root / sp
+            self._promo_lines = self.kb.promo_lines(str(script_path))
+            logger.info(
+                "宣讲模式开启 layout=%s 知识库=%d片段 宣讲稿=%d条",
+                self.promo_layout,
+                len(self.kb.chunks),
+                len(self._promo_lines),
+            )
+
     def _media_url(self, path: Path | None) -> str:
         """data 下文件 → /media/... 供控制台预览播放。"""
         if path is None:
@@ -204,6 +244,14 @@ class LiveOrchestrator:
             raise FileNotFoundError("缺少 idle/动作视频，请先准备 data/avatars/demo/actions")
 
         self.stream_mgr = StreamManager(rtmp, self.app.section("stream"))
+
+        # 宣讲模式：idle 底换成分屏（左网站右人物），开播抓一次网站截图
+        self._idle_source = idle
+        if self.promo_enabled and self.promo_layout in ("split", "website_only"):
+            self._website_img = self._capture_website()
+            idle = self._compose_idle(idle)
+            self._idle_composed = idle
+            self._start_website_refresher()
 
         self.idle_video_url = self._media_url(idle)
         # 正脸图作浏览器「静止待机」；无图时前端用 idle 视频首帧定格
@@ -272,6 +320,7 @@ class LiveOrchestrator:
     def stop(self) -> None:
         self._stop.set()
         self._interrupt.set()
+        self._web_refresh_stop.set()
         # 清空队列
         try:
             while True:
@@ -314,13 +363,25 @@ class LiveOrchestrator:
         text = (item.text or "").strip()
         if not text:
             return False, "空内容"
-        if not self.moderator.check(text) and item.user_key != "system":
+        if not self.moderator.check(text) and item.user_key not in ("system", "promo"):
             return False, "内容未通过审核"
+
+        # 宣讲模式：真人提问打断正在播报的宣讲，马上解答
+        if (
+            self.promo_enabled
+            and item.user_key not in ("system", "promo", "op_urgent")
+            and self._promo_speaking
+        ):
+            try:
+                self.interrupt()
+            except Exception:
+                logger.exception("promo interrupt failed")
 
         self._seq += 1
         # 优先级高的先处理：priority 大 → sort 小
         pri = PrioritizedItem(sort_key=(-item.priority, self._seq), item=item)
         self._q.put(pri)
+        self._last_activity = time.time()
         self._emit(
             {
                 "type": "status",
@@ -339,7 +400,7 @@ class LiveOrchestrator:
                 logger.exception("on_event error")
 
     def _allow_user(self, user_key: str) -> bool:
-        if user_key in ("system", "op_urgent"):
+        if user_key in ("system", "promo", "op_urgent"):
             return True
         limit = int(self._limits.get("user_msg_per_30s") or 3)
         now = time.time()
@@ -393,6 +454,7 @@ class LiveOrchestrator:
                 except queue.Empty:
                     if self.state not in (LiveState.SPEAKING, LiveState.THINKING, LiveState.READING):
                         self.state = LiveState.IDLE
+                    self._maybe_promo()
                     continue
                 item: InputItem = pri.item
                 self._handle_one(item)
@@ -415,15 +477,19 @@ class LiveOrchestrator:
         self._emit({"type": "status", "phase": "reading", "queue_length": self._q.qsize()})
 
         user_text = item.text
-        # 开场白特殊：直接用人设 greeting
-        if item.user_key == "system" and self.room.persona.greeting:
+        # 开场白：直接用人设 greeting（整场只播一次）
+        if item.user_key == "system" and not self._greeted and self.room.persona.greeting:
             reply = self.room.persona.greeting
+            self._greeted = True
+        elif item.user_key == "promo":
+            reply = item.text  # 宣讲文案原文播报，不走 LLM 改写
         else:
             self.state = LiveState.THINKING
             self._emit({"type": "status", "phase": "thinking", "queue_length": self._q.qsize()})
             reply = self._llm_reply(user_text)
 
         if self._stop.is_set() or self._interrupt.is_set():
+            self._promo_speaking = False
             self.state = LiveState.IDLE
             return
 
@@ -450,6 +516,7 @@ class LiveOrchestrator:
             )
         )
 
+        self._promo_speaking = item.user_key == "promo"
         self.state = LiveState.SPEAKING
         self._emit(
             {
@@ -462,6 +529,7 @@ class LiveOrchestrator:
 
         clip = self._synth_and_lipsync(reply, action)
         if self._stop.is_set() or self._interrupt.is_set():
+            self._promo_speaking = False
             self.state = LiveState.IDLE
             return
 
@@ -492,6 +560,7 @@ class LiveOrchestrator:
                 "has_audio": True,
             }
         )
+        self._promo_speaking = False
         self.state = LiveState.IDLE
         # 说完：通知前端回静止（不要 loop idle 视频）
         self._emit(
@@ -510,9 +579,20 @@ class LiveOrchestrator:
 
     def _llm_reply(self, user_text: str) -> str:
         base = self.room.persona.system_prompt or "你是直播间助手，回复简短口语化。"
+        # 宣讲模式：从知识库检索相关片段，注入 system prompt
+        kb_ctx = ""
+        if self.promo_enabled and self.kb is not None:
+            top_k = int(self.promo_cfg.get("kb_top_k") or 3)
+            chunks = self.kb.search(user_text, top_k=top_k)
+            if chunks:
+                kb_ctx = (
+                    "\n\n" + self.kb.format_context(chunks)
+                    + "\n回答时优先引用知识库中的具体信息（如功能名、价格），"
+                    "不要编造知识库没有的内容；答不上来就说“这个问题我记下了”并转回产品介绍。"
+                )
         # 强制直播口播约束，抑制 thinking 模型输出英文草稿
         sys_prompt = (
-            f"{base}\n\n"
+            f"{base}{kb_ctx}\n\n"
             "【输出规则】只输出一句可直接口播的中文，不超过40字；"
             "不要思考过程、不要英文、不要 markdown、不要列表编号。"
         )
@@ -556,4 +636,90 @@ class LiveOrchestrator:
         if ref is None:
             raise FileNotFoundError("无参考视频")
         self.lipsync.run(audio_path, ref, out_path)
+        # 宣讲分屏：左网站右人物，把口型成片嵌进分屏（音频沿用成片自带 TTS 音轨）
+        if self.promo_enabled and self.promo_layout == "split" and self._website_img:
+            from broadcast import compose
+
+            split_out = clips_dir / f"{ts}_split.mp4"
+            compose.compose_split(
+                self._website_img, out_path, split_out, use_second_audio=True
+            )
+            return split_out
         return out_path
+
+    # ---------- 宣讲模式 ----------
+    def _capture_website(self, out: Path | None = None) -> Path:
+        from broadcast import compose
+
+        url = str(self.promo_cfg.get("website_url") or "").strip()
+        out = out or (self.app.output_dir / "promo" / "website.png")
+        if not url:
+            logger.warning("未配置 website_url，使用占位图")
+            return compose.make_website_placeholder(
+                out, url, str(self.promo_cfg.get("product_name") or "")
+            )
+        return compose.capture_website(
+            url, out, product_name=str(self.promo_cfg.get("product_name") or "")
+        )
+
+    def _compose_idle(self, idle_video: Path) -> Path:
+        from broadcast import compose
+
+        out = self.app.output_dir / "promo" / "idle_split.mp4"
+        if self.promo_layout == "website_only" or not self._website_img:
+            # 仅网站：截图左右拼满（v1 简化实现）
+            img = self._website_img or idle_video
+            return compose.compose_split(img, img, out, duration=30.0)
+        return compose.compose_split(self._website_img, idle_video, out, duration=30.0)
+
+    def _start_website_refresher(self) -> None:
+        sec = int(self.promo_cfg.get("website_refresh_sec") or 0)
+        if sec <= 0:
+            return
+
+        def _loop() -> None:
+            while not self._web_refresh_stop.wait(sec):
+                if self._stop.is_set():
+                    return
+                try:
+                    from broadcast.stream_manager import StreamPhase
+
+                    new_img = self.app.output_dir / "promo" / f"website_{int(time.time())}.png"
+                    self._capture_website(new_img)
+                    # 仅在 idle 时热切换，不打断正在播的回复
+                    if (
+                        self.stream_mgr
+                        and self.stream_mgr.phase == StreamPhase.IDLE
+                        and self._idle_source is not None
+                    ):
+                        self._website_img = new_img
+                        idle = self._compose_idle(self._idle_source)
+                        self._idle_composed = idle
+                        self.stream_mgr.start_idle_loop(idle)
+                        logger.info("网站截图已刷新并热切换 idle 底")
+                except Exception:
+                    logger.exception("网站截图刷新失败")
+
+        self._web_refresh_stop.clear()
+        self._web_refresh_thread = threading.Thread(target=_loop, daemon=True)
+        self._web_refresh_thread.start()
+
+    def _maybe_promo(self) -> None:
+        """队列空闲超过 idle_seconds，自动播报下一条宣讲。"""
+        if not self.promo_enabled or self.mode != "interactive":
+            return
+        if not self._promo_lines or self.state != LiveState.IDLE:
+            return
+        idle_sec = int(self.promo_cfg.get("idle_seconds") or 45)
+        if idle_sec <= 0:
+            return
+        if time.time() - self._last_activity < idle_sec:
+            return
+        line = self._promo_lines[self._promo_idx % len(self._promo_lines)]
+        self._promo_idx += 1
+        self._last_activity = time.time()
+        ok, _ = self.enqueue(
+            InputItem(text=line, user_key="promo", priority=5, action_hint="nod")
+        )
+        if ok:
+            logger.info("闲时宣讲已入队: %s", line[:30])
