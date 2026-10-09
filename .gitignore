@@ -59,7 +59,12 @@ data/output/clips/*/*.mp4
 data/output/clips/*/*/*.mp4
 data/output/*/broadcast.mp4
 data/output/*/playlist.txt
+# 宣讲模式产物（分屏成片、网站截图、idle 底）——别把生成物提交上去
+data/output/promo/
+data/output/*/idle_split.mp4
+data/output/*/*_split.mp4
 data/temp/
+data/_layout_fix_*.png
 data/voices/*/preview/
 data/voices/*/sample/
 data/voices/*/*.wav

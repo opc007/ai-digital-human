@@ -1435,6 +1435,109 @@ async function testTarget(target) {
   }
 }
 
+function pfRow(level, head, msg) {
+  const item = document.createElement("div");
+  item.className = `pf-item ${level}`;
+  const h = document.createElement("div");
+  h.className = "pf-head";
+  h.textContent = `${PF_ICONS[level] || "❔"} ${head}`;
+  item.appendChild(h);
+  if (msg) {
+    const m = document.createElement("div");
+    m.className = "pf-msg";
+    m.textContent = msg;
+    item.appendChild(m);
+  }
+  return item;
+}
+
+function renderPromoPanel(promo) {
+  const block = $("promoBlock");
+  if (!block) return;
+  if (!promo || !promo.available) {
+    block.classList.add("hidden");
+    return;
+  }
+  block.classList.remove("hidden");
+  const kb = promo.knowledge || {};
+  const ps = promo.promo_script || {};
+  const layoutText =
+    { split: "左网站 · 右数字人", website_only: "仅网站画面", avatar_only: "仅人物" }[
+      promo.layout
+    ] || promo.layout;
+
+  const box = $("promoStatus");
+  box.innerHTML = "";
+  box.appendChild(
+    pfRow(
+      promo.enabled ? "ok" : "warn",
+      promo.enabled ? "宣讲模式已开启" : "宣讲模式未开启",
+      promo.message || ""
+    )
+  );
+  box.appendChild(
+    pfRow(
+      promo.enabled ? "ok" : "warn",
+      `画面布局：${layoutText}`,
+      promo.website_url || "未配置官网地址"
+    )
+  );
+  box.appendChild(
+    pfRow(
+      kb.chunks ? "ok" : "warn",
+      `知识库：${kb.chunks || 0} 段`,
+      (kb.files || []).length
+        ? `${kb.files.length} 个文件：${kb.files.join("、")}`
+        : "还没有放 .md / .txt 文件，数字人只能凭内置话术回答"
+    )
+  );
+  box.appendChild(
+    pfRow(
+      ps.lines ? "ok" : "warn",
+      `闲时宣讲：${ps.lines || 0} 条`,
+      ps.lines
+        ? `没人提问超过 ${promo.idle_seconds || 45} 秒，自动播一条`
+        : "没有宣讲稿，闲时不会自动讲话"
+    )
+  );
+
+  $("promoHint").textContent = promo.enabled
+    ? "开播时房间选 promo。下面可以先试一个观众可能会问的问题，确认它答得上。"
+    : "当前房间没开宣讲模式，普通直播不受影响。";
+}
+
+async function testPromoQuery() {
+  const out = $("promoTestResult");
+  const q = ($("promoQuery")?.value || "").trim();
+  if (!q) {
+    out.innerHTML = "";
+    out.appendChild(pfRow("warn", "先写个问题", "比如「贵不贵」「多久出片」「支持苹果吗」"));
+    return;
+  }
+  try {
+    const r = await api("/api/v1/promo/test", {
+      method: "POST",
+      body: JSON.stringify({ query: q }),
+    });
+    out.innerHTML = "";
+    if (r.hit) {
+      const first = r.chunks[0] || {};
+      out.appendChild(
+        pfRow(
+          "ok",
+          `答得上：命中 ${r.count} 段`,
+          `${first.heading || first.source || ""}｜${(first.text || "").slice(0, 100)}`
+        )
+      );
+    } else {
+      out.appendChild(pfRow("warn", "答不上：知识库里没有", r.hint || ""));
+    }
+  } catch (e) {
+    out.innerHTML = "";
+    out.appendChild(pfRow("block", "试一下失败", e.message || String(e)));
+  }
+}
+
 // —— 数据加载 ——
 async function loadBootstrap() {
   const data = await api("/api/v1/bootstrap");
@@ -1448,6 +1551,7 @@ async function loadBootstrap() {
   renderRuntimes();
   renderKeyStatus();
   renderReadyPills();
+  renderPromoPanel(data.promo);
   refreshRtmpCard();
   updatePrimaryButton();
 }
@@ -1691,6 +1795,13 @@ function bindEvents() {
 
   $("btnFreeTtsOn")?.addEventListener("click", () => setFreeTts(true));
   $("btnFreeTtsOff")?.addEventListener("click", () => setFreeTts(false));
+  $("btnPromoTest")?.addEventListener("click", testPromoQuery);
+  $("promoQuery")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      testPromoQuery();
+    }
+  });
 
   $("btnUnmute")?.addEventListener("click", (e) => {
     e.stopPropagation();

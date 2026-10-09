@@ -108,6 +108,10 @@ class SettingsTestBody(BaseModel):
     target: str  # deepseek | minimax | ollama
 
 
+class PromoTestBody(BaseModel):
+    query: str = ""
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
@@ -218,6 +222,83 @@ def _probe_ollama(base_url: str) -> bool:
         return False
 
 
+def _promo_summary(app_cfg=None, room_id: str | None = None) -> dict:
+    """宣讲模式状态汇总：给不懂技术的用户「一眼看出开没开、知识库进没进来」。
+
+    不抛异常——任何一步失败都退化成「不可用 + 说明」，绝不因为宣讲模式
+    把整个首屏搞挂。
+    """
+    from broadcast.config import load_app_config
+
+    app_cfg = app_cfg or load_app_config()
+    out: dict = {
+        "enabled": False,
+        "available": False,
+        "layout": "avatar_only",
+        "rooms": [],
+        "message": "宣讲模式未启用",
+    }
+    try:
+        global_promo = app_cfg.section("promo") or {}
+        if not global_promo:
+            out["message"] = "配置文件里没有 promo 节"
+            return out
+        out["available"] = True
+        rid = room_id or "promo"
+        room = load_room_config(rid, app_cfg)
+        merged = {**global_promo, **(room.promo.model_dump(exclude_none=True) if room.promo else {})}
+        out["enabled"] = bool(merged.get("enabled"))
+        out["layout"] = str(merged.get("layout") or "avatar_only")
+        out["room_id"] = room.room_id
+        out["product_name"] = str(merged.get("product_name") or "")
+        out["website_url"] = str(merged.get("website_url") or "")
+        out["idle_seconds"] = int(merged.get("idle_seconds") or 0)
+        out["kb_aliases"] = bool(merged.get("kb_aliases", True))
+    except Exception as e:  # 配置坏了也不能让首屏挂掉
+        out["message"] = f"宣讲模式配置读取失败：{e}"
+        return out
+
+    # 知识库实况
+    try:
+        from engines.knowledge import KnowledgeBase
+
+        kb_dir = Path(str(merged.get("knowledge_dir") or "knowledge"))
+        if not kb_dir.is_absolute():
+            kb_dir = ROOT / kb_dir
+        kb = KnowledgeBase(kb_dir, use_aliases=bool(merged.get("kb_aliases", True)))
+        script_cfg = str(merged.get("promo_script") or "knowledge/promo_script.md")
+        sp = Path(script_cfg)
+        script_path = sp if sp.is_absolute() else ROOT / sp
+        lines = kb.promo_lines(str(script_path))
+        out["knowledge"] = {
+            "dir": str(kb_dir),
+            "exists": kb_dir.is_dir(),
+            "files": kb.files,
+            "chunks": len(kb.chunks),
+            "synonym_groups": len(kb.synonym_groups),
+            "alias_source": kb._alias_source,
+        }
+        out["promo_script"] = {
+            "path": str(script_path),
+            "exists": script_path.is_file(),
+            "lines": len(lines),
+        }
+        if not out["enabled"]:
+            out["message"] = "宣讲模式已就绪，但该房间 promo.enabled=false（不影响普通直播）"
+        elif not kb.chunks:
+            out["message"] = "宣讲模式已开，但知识库是空的——数字人只能靠内置话术"
+        elif not lines:
+            out["message"] = "宣讲模式已开，但没读到宣讲稿——闲时不会自动宣讲"
+        else:
+            out["message"] = (
+                f"宣讲模式就绪：{len(kb.files)} 个知识库文件 / {len(kb.chunks)} 段，"
+                f"{len(lines)} 条闲时宣讲"
+            )
+    except Exception as e:
+        out["message"] = f"知识库读取失败：{e}"
+    return out
+
+
 @app.get("/api/v1/bootstrap")
 def bootstrap():
     """控制台首屏：平台、算力模式、密钥是否已配置（不返回密钥本身）。"""
@@ -251,6 +332,17 @@ def bootstrap():
     except Exception:
         pass
 
+    promo = _promo_summary()
+    tips = [
+        "进来先点「配置」填图生视频接口 / Key / 模型，再去素材中心建角色",
+        "声音默认「免费测试」（微软语音），先跑通流程；以后在配置关掉免费开关并填 MiniMax 即可",
+        "第一次用：选「仅预览」，点开始直播即可试玩",
+    ]
+    if promo.get("enabled"):
+        tips.insert(0, f"宣讲模式已开启：{promo.get('message')}")
+    elif promo.get("available"):
+        tips.insert(0, "想用宣讲带货（分屏+知识库+闲时宣讲）？开播时房间选 promo")
+
     return {
         "platforms": list_platforms(),
         "runtime_modes": list_runtime_modes(),
@@ -268,16 +360,90 @@ def bootstrap():
             "avatar_ready": avatar_ok,
             "avatar_actions": avatar_actions,
         },
+        "promo": promo,
         "defaults": {
             "platform": "preview",
             "runtime_mode": "cloud",
-            "room_id": "demo",
+            "room_id": "promo" if promo.get("enabled") else "demo",
         },
-        "tips": [
-            "进来先点「配置」填图生视频接口 / Key / 模型，再去素材中心建角色",
-            "声音默认「免费测试」（微软语音），先跑通流程；以后在配置关掉免费开关并填 MiniMax 即可",
-            "第一次用：选「仅预览」，点开始直播即可试玩",
+        "tips": tips,
+    }
+
+
+@app.get("/api/v1/promo/knowledge")
+def api_promo_knowledge(_: None = Depends(require_token)):
+    """列出知识库与宣讲稿的实际内容——让用户确认「我填的东西真的被读进去了」。
+
+    只读，不落盘；预览按段截断，避免一次返回几十万字。
+    """
+    from engines.knowledge import KnowledgeBase
+
+    app_cfg = load_app_config()
+    promo = _promo_summary(app_cfg)
+    room = load_room_config(promo.get("room_id") or "promo", app_cfg)
+    merged = {**(app_cfg.section("promo") or {}),
+              **(room.promo.model_dump(exclude_none=True) if room.promo else {})}
+    kb_dir = Path(str(merged.get("knowledge_dir") or "knowledge"))
+    if not kb_dir.is_absolute():
+        kb_dir = ROOT / kb_dir
+    use_aliases = bool(merged.get("kb_aliases", True))
+    kb = KnowledgeBase(kb_dir, use_aliases=use_aliases)
+    script_cfg = str(merged.get("promo_script") or "knowledge/promo_script.md")
+    sp = Path(script_cfg)
+    script_path = sp if sp.is_absolute() else ROOT / sp
+    lines = kb.promo_lines(str(script_path))
+
+    return {
+        "status": promo,
+        "chunks": [
+            {
+                "source": c.source,
+                "heading": c.heading,
+                "text": c.text[:220] + ("…" if len(c.text) > 220 else ""),
+                "chars": len(c.text),
+            }
+            for c in kb.chunks
         ],
+        "promo_lines": lines,
+        "synonym_groups": [list(g) for g in kb.synonym_groups],
+    }
+
+
+@app.post("/api/v1/promo/test")
+def api_promo_test(body: PromoTestBody, _: None = Depends(require_token)):
+    """拿一句话试检索：开播前先确认「这个问题它答得上来吗」。"""
+    from engines.knowledge import KnowledgeBase
+
+    q = (body.query or "").strip()
+    if not q:
+        raise HTTPException(400, "请先输入一个观众可能会问的问题")
+    app_cfg = load_app_config()
+    promo = _promo_summary(app_cfg)
+    room = load_room_config(promo.get("room_id") or "promo", app_cfg)
+    merged = {**(app_cfg.section("promo") or {}),
+              **(room.promo.model_dump(exclude_none=True) if room.promo else {})}
+    kb_dir = Path(str(merged.get("knowledge_dir") or "knowledge"))
+    if not kb_dir.is_absolute():
+        kb_dir = ROOT / kb_dir
+    kb = KnowledgeBase(kb_dir, use_aliases=bool(merged.get("kb_aliases", True)))
+    top_k = int(merged.get("kb_top_k") or 3)
+    hits = kb.search(q, top_k=top_k)
+    return {
+        "query": q,
+        "hit": bool(hits),
+        "count": len(hits),
+        "chunks": [
+            {"heading": c.heading, "source": c.source,
+             "text": c.text[:300] + ("…" if len(c.text) > 300 else "")}
+            for c in hits
+        ],
+        "hint": (
+            "检索到了，数字人会照着知识库回答"
+            if hits else
+            "没检索到。数字人会回答「这个具体问题我记下了」而不会编造。"
+                 "如果这个回答本该知道，去 knowledge/_aliases.txt 里把观众问法和"
+                 "知识库用词挂到同一组，或直接在知识库里补上原文。"
+        ),
     }
 
 
@@ -898,9 +1064,13 @@ def api_voice_preview(body: VoicePreviewBody, _: None = Depends(require_token)):
     from broadcast.voice_assets import preview_tts
 
     try:
-        return preview_tts(body.text, mock=body.mock, voice_id=body.voice_id)
+        r = preview_tts(body.text, mock=body.mock, voice_id=body.voice_id)
     except Exception as e:
         raise HTTPException(500, f"TTS 失败: {e}") from e
+    # 静音不算成功：如实告诉调用方，并带上「该怎么办」
+    if r.get("silent"):
+        raise HTTPException(502, r.get("reason") or "语音没有返回声音")
+    return r
 
 
 @app.get("/api/v1/avatars")

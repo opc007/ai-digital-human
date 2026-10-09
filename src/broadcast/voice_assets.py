@@ -119,6 +119,29 @@ def save_sample(data: bytes, filename: str) -> dict[str, Any]:
     }
 
 
+def _wav_rms(path: Path) -> float:
+    """算 wav 的均方根音量，用来判断「到底有没有出声」。
+
+    静音试听比报错更坑：用户点了试听、界面说成功、却什么也没听见，
+    根本不知道是哪里坏了。这里量一下真实振幅。
+    """
+    import audioop
+    import wave
+
+    try:
+        with wave.open(str(path), "rb") as wf:
+            frames = wf.readframes(wf.getnframes())
+            if not frames:
+                return 0.0
+            return audioop.rms(frames, wf.getsampwidth())
+    except Exception:
+        return 0.0
+
+
+# 16bit PCM 的 RMS 低于这个值基本等于全零
+_SILENT_RMS = 120
+
+
 def preview_tts(
     text: str,
     mock: bool = False,
@@ -141,13 +164,29 @@ def preview_tts(
     out = voice_dir() / "preview" / f"tts_{uuid.uuid4().hex[:10]}.wav"
     engine.synth(text.strip() or "大家好，欢迎来到直播间。", voice, out)
     meta = find_voice(voice) or {}
-    return {
-        "ok": True,
+
+    rms = _wav_rms(out)
+    silent = (not use_mock) and rms < _SILENT_RMS
+    result = {
+        "ok": not silent,
         "text": text,
         "voice_id": voice,
         "voice_name": meta.get("name") or voice,
         "demo": use_mock,
         "free_tts": free or (tts_cfg.get("provider") or "").lower() in ("local", "edge", "edge-tts"),
+        "engine": type(engine).__name__,
+        "silent": silent,
+        "rms": int(rms),
         "url": f"/media/voices/demo/preview/{out.name}",
         "path": str(out),
     }
+    if silent:
+        used_edge = type(engine).__name__ == "LocalTTSEngine"
+        result["reason"] = (
+            "免费语音（微软 edge-tts）连不上，多半是这台机器的网络或证书拦住了。"
+            "可以：① 换个网络重试；② 在控制台「配置」里关掉免费语音并填 MiniMax Key；"
+            "③ 先用 --mock 模式看流程。"
+            if used_edge else
+            "语音服务没有返回声音。先在控制台「配置」里检查 Key，或临时切到免费语音。"
+        )
+    return result
