@@ -1,0 +1,33 @@
+# 宣讲带货模式示例房间：AI电影梦平台宣讲
+# 换成自己的产品：改 promo 节 + knowledge/ 目录里的 md 文件即可
+room_id: promo
+title: AI电影梦宣讲直播间
+
+avatar:
+  dir: data/avatars/demo
+  default_action: idle
+
+persona:
+  name: 梦梦
+  system_prompt: |
+    你是 AI电影梦 平台的直播宣讲主播“梦梦”，负责介绍平台功能、回答观众提问。
+    回复不超过40字，口语化、热情，像带货主播一样有感染力。
+    不知道答案时不要编造，说“这个问题我记下了，稍后为你解答”，并把话题转回平台介绍。
+  greeting: 大家好，我是梦梦！今天带大家认识 AI电影梦，一个让普通人也能做出电影级视频的 AI 创作平台。
+  temperature: 0.7
+
+tts:
+  voice_id: ""
+
+stream:
+  platform: douyin
+  # 完整推流地址 = rtmp_url + "/" + key；key 来自环境变量 ROOM_PROMO_RTMP_KEY
+  rtmp_url: rtmp://push-rtmp-fx.douyin.com/live/
+
+promo:
+  enabled: true
+  layout: split            # 左网站右人物
+  product_name: "AI电影梦"
+  website_url: "https://www.ainn.asia"
+  website_title: "AI电影梦"
+  idle_seconds: 45

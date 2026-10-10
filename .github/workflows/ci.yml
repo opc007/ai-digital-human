@@ -75,6 +75,9 @@ jobs:
       - name: 互动编排冒烟（不启 HTTP）
         run: python scripts/08_smoke_interactive.py
 
+      - name: 宣讲模式冒烟（知识库检索 + 同义召回 + 防误命中 + 分屏合成 + mock 全链路）
+        run: python scripts/13_promo_setup.py --room promo --smoke
+
       - name: 控制台冒烟（拉起 30s 后关闭）
         run: |
           set -e
